@@ -215,7 +215,7 @@ class UI:
         #header
         self.g_servers = urwid.Columns([])
         self.g_users   = urwid.Columns([])
-        g_head         = urwid.AttrMap(urwid.Columns((('weight', 3, self.g_servers), self.g_users)), 'head')
+        g_head         = urwid.AttrMap(self.g_servers, 'head')
 
         #main
         self.g_output      = urwid.ListBox(self.g_output_list)
@@ -307,7 +307,7 @@ class UI:
                 e = urwid.AttrMap(urwid.Text((urwid.AttrSpec('default,standout','default'), " %s " % s)), 'server_current')
                 self.g_output_wrap.set_title(s)
             else:
-                e = urwid.AttrMap(PMenuButton(" %s " % s, lambda button, _s=s: self.connect_to_server(_s)), 'server')
+                e = urwid.AttrMap(PMenuButton(" %s " % (s[0:8] + '_' +  s[-2:]), lambda button, _s=s: self.connect_to_server(_s)), 'server')
             new.append((e, self.g_servers.options('pack')))
 
         contents = self.g_servers.contents
