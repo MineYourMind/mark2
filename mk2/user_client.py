@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+from __future__ import division
 import getpass
 import glob
 import json
 import os
+import math
 from string import Template
 from twisted.internet import reactor
 from twisted.internet.protocol import ClientFactory, ProcessProtocol
@@ -192,6 +194,7 @@ class PMenuWrap(urwid.WidgetPlaceholder):
 
 class UI:
     loop = None
+    screen = urwid.raw_display.Screen()
 
     def __init__(self, palette, get_players, run_command, switch_server, connect_to_server, pmenu_actions, pmenu_reasons):
         self.palette = palette
@@ -301,13 +304,39 @@ class UI:
             self.loop.draw_screen()
 
     def set_servers(self, servers, current=None):
+        screenSize = lambda rows=True, scr=self.screen: scr.get_cols_rows()[rows]
+        screenWidth = screenSize(False)
+        #rows, columns = os.popen('stty size', 'r').read().split()
+        
+        extraWidth = 9 # mark2 name
+        requiredWidth = len('  '.join(servers)) + extraWidth
+
+        charsToRemove = 0
+        requiredSpace = requiredWidth - screenWidth
+        if requiredSpace > 0:
+            serverAmount = len(servers) - 1 # minus the selected one
+            charsToRemove = int(math.ceil(requiredSpace / serverAmount))
+        
         new = []
         for s in sorted(servers):
             if s == current:
                 e = urwid.AttrMap(urwid.Text((urwid.AttrSpec('default,standout','default'), " %s " % s)), 'server_current')
                 self.g_output_wrap.set_title(s)
             else:
-                e = urwid.AttrMap(PMenuButton(" %s " % (s[0:8] + '_' +  s[-2:]), lambda button, _s=s: self.connect_to_server(_s)), 'server')
+                if screenWidth >= requiredWidth:
+                    e = urwid.AttrMap(PMenuButton(" %s " % s, lambda button, _s=s: self.connect_to_server(_s)), 'server')
+                else:
+                    reductionLimit = 3
+                    charsToKeep = (len(s) - charsToRemove) - 3 # minus the underscore and ending
+                    if charsToKeep < reductionLimit:
+                        charsToKeep = reductionLimit
+
+                    indices = slice(0, charsToKeep)
+                    startPart = s[indices]
+                    if startPart[-1:] != '_':
+                        startPart += '_'
+
+                    e = urwid.AttrMap(PMenuButton(" %s " % (startPart + s[-2:]), lambda button, _s=s: self.connect_to_server(_s)), 'server')
             new.append((e, self.g_servers.options('pack')))
 
         contents = self.g_servers.contents
