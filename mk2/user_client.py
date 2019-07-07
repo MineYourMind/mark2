@@ -323,9 +323,8 @@ class UI:
                 e = urwid.AttrMap(urwid.Text((urwid.AttrSpec('default,standout','default'), " %s " % s)), 'server_current')
                 self.g_output_wrap.set_title(s)
             else:
-                if screenWidth >= requiredWidth:
-                    e = urwid.AttrMap(PMenuButton(" %s " % s, lambda button, _s=s: self.connect_to_server(_s)), 'server')
-                else:
+                tabName = s
+                if screenWidth < requiredWidth:
                     reductionLimit = 3
                     charsToKeep = (len(s) - charsToRemove) - 3 # minus the underscore and ending
                     if charsToKeep < reductionLimit:
@@ -336,7 +335,10 @@ class UI:
                     if startPart[-1:] != '_':
                         startPart += '_'
 
-                    e = urwid.AttrMap(PMenuButton(" %s " % (startPart + s[-2:]), lambda button, _s=s: self.connect_to_server(_s)), 'server')
+                    tabName = startPart + s[-2:]
+
+                e = urwid.AttrMap(PMenuButton(" %s " % tabName, lambda button, _s=s: self.connect_to_server(_s)), 'server')
+                
             new.append((e, self.g_servers.options('pack')))
 
         contents = self.g_servers.contents
