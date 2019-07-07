@@ -2,6 +2,7 @@ import os
 import re
 import shlex
 import zipfile
+from collections import OrderedDict
 
 
 def load(cls, *files):
@@ -29,13 +30,13 @@ def load_jar(jar, *path):
     return None
 
 
-class Properties(dict):
+class Properties(OrderedDict):
     def __init__(self, f, parent=None):
-        dict.__init__(self)
+        OrderedDict.__init__(self)
 
         if parent:
             self.update(parent)
-            self.types = dict(parent.types)
+            self.types = OrderedDict(parent.types)
         else:
             self.types = {}
 
