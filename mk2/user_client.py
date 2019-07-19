@@ -111,87 +111,6 @@ class PMenuButton(urwid.Button):
         self._w = urwid.SelectableIcon(caption, 0)
 
 
-class PMenuWrap(urwid.WidgetPlaceholder):
-    names = ('players', 'actions', 'reasons')
-
-    def __init__(self, actions, reasons, dispatch, escape):
-        self.dispatch = dispatch
-        self.escape = escape
-        self._pmenu_lists   = [ (n, urwid.SimpleListWalker([])) for n    in self.names        ]
-        self._pmenu_widgets = [ (n, urwid.ListBox(l))           for n, l in self._pmenu_lists ]
-
-        self.fill(1, zip(actions, actions))
-        self.fill(2, reasons)
-
-        self.first()
-
-        super(PMenuWrap, self).__init__(self._pmenu_widgets[0][1])
-
-    def fill(self, index, items):
-        name, contents = self._pmenu_lists[index]
-        del contents[0:len(contents)]
-        for name, result in items:
-            e = urwid.AttrMap(PMenuButton(name, self.next, result), 'menu_item', 'menu_item_focus')
-            contents.append(e)
-
-    def first(self):
-        self._pmenu_acc = []
-        self._pmenu_stage = 0
-        self.original_widget = self._pmenu_widgets[0][1]
-
-    def next(self, widget, result):
-        acc = self._pmenu_acc
-        acc.append(result)
-        #run command?
-        if (self._pmenu_stage == 1 and not (result in ('kick', 'ban') and len(self._pmenu_lists[2][1]) > 0)) or\
-           (self._pmenu_stage == 2):
-            self.dispatch(' '.join([acc[1]] + [acc[0]] + acc[2:]))
-            self.first()
-        #next menu
-        else:
-            self._pmenu_stage += 1
-            self.original_widget = self._pmenu_widgets[self._pmenu_stage][1]
-
-    def prev(self):
-        self._pmenu_acc.pop()
-        self._pmenu_stage -= 1
-        self.original_widget = self._pmenu_widgets[self._pmenu_stage][1]
-
-    def keypress(self, size, key):
-        if key == 'esc':
-            if self._pmenu_stage == 0:
-                self.escape()
-            else:
-                self.first()
-        elif key == 'backspace':
-            if self._pmenu_stage == 0:
-                self.escape()
-            else:
-                self.prev()
-        else:
-            return self.original_widget.keypress(size, key)
-
-    def set_players(self, players):
-        content = self._pmenu_lists[0][1]
-        diff = lambda a, b: [[e for e in d if not e in c] for c, d in ((a, b), (b, a))]
-
-        add, remove = diff([b.original_widget.label for b in list(content)], players)
-
-        #first remove players who logged off
-        for b in list(content):
-            if b.original_widget.label in remove:
-                content.remove(b)
-
-        #now add new players
-        i = 0
-        while len(add) > 0:
-            a = add.pop(0)
-            while i < len(content) - 1 and content[i].original_widget.label.lower() < a.lower():
-                i += 1
-            content.insert(i, urwid.AttrMap(PMenuButton(a, self.next, a), 'menu_item', 'menu_item_focus'))
-            i += 1
-
-
 class UI:
     loop = None
     screen = urwid.raw_display.Screen()
@@ -222,30 +141,11 @@ class UI:
 
         #main
         self.g_output      = urwid.ListBox(self.g_output_list)
-        #self.g_output_wrap = urwid.LineBox(urwid.AttrMap(self.g_output, 'output'))
         self.g_output_wrap = urwid.LineBox(urwid.AttrMap(self.g_output, 'output'))
-        self.g_stats       = urwid.Text([('cpu', u" CPU: 20.4% "), ('mem', u" MEM: 66.2% "), ('load', u" LOAD: 0.5 1.5 1.2 "), ('players', u" PLAYERS: 18 of 52 ")], align='right')
-        #self.g_stats_min   = urwid.WidgetDisable(urwid.AttrMap(self.g_stats, 'stats'))
-        self.g_stats_min   = urwid.WidgetDisable(
-            urwid.AttrMap(
-                self.g_stats,
-                'stats'
-            )
-        )
+        g_main             = urwid.WidgetDisable(urwid.AttrMap(self.g_output, 'console'))
 
-        #player menu
-        def escape():
-            self.g_frame.focus_position='footer'
-        self.g_pmenu = PMenuWrap(self.pmenu_actions, self.pmenu_reasons, self.run_command, escape)
-
-        #g_sidebar = urwid.Pile((
-        #    ('pack', urwid.AttrMap(urwid.LineBox(self.g_stats, title='stats'), 'stats')),
-        #    urwid.AttrMap(urwid.LineBox(self.g_pmenu, title="players"), 'menu')))
-        g_sidebar = urwid.AttrMap(self.g_pmenu, 'menu')
-        g_main    = urwid.Columns((
-            urwid.WidgetDisable(urwid.AttrMap(self.g_output, 'console')),
-            ('fixed', 31, g_sidebar)))
-        g_main_min = urwid.WidgetDisable(urwid.AttrMap(self.g_output, 'console'))
+        self.g_stats        = urwid.Text([('cpu', u" CPU: 20.4% "), ('mem', u" MEM: 66.2% "), ('load', u" LOAD: 0.5 1.5 1.2 "), ('players', u" PLAYERS: 18 of 52 ")], align='right')
+        self.g_stats_min    = urwid.WidgetDisable(urwid.AttrMap(self.g_stats, 'stats'))
 
         #foot
         self.g_prompt = Prompt(self.get_players, self.run_command, ' > ')
@@ -255,12 +155,7 @@ class UI:
             urwid.Columns((urwid.AttrMap(self.g_users, 'stats'), self.g_stats_min))
             ))
 
-        g_frame = urwid.Frame(g_main, g_head, g_foot_min, focus_part='footer')
-        g_frame_min = urwid.Frame(g_main_min, g_head, g_foot_min, focus_part='footer')
-
-        self.g_frame = g_frame_min
-
-        #log.addObserver(lambda m: self.append_output(str(m['message'])))
+        self.g_frame = urwid.Frame(g_main, g_head, g_foot_min, focus_part='footer')
 
     def main(self):
         self.loop = urwid.MainLoop(
@@ -405,10 +300,6 @@ class UI:
             return self.set_filter(self.filters[filter_])
         self.filter = filter_.apply
         self.set_output()
-
-    def set_players(self, players):
-        self.g_pmenu.set_players(players)
-        self.redraw()
 
     def set_stats(self, stats):
         self.g_stats.set_text([
@@ -584,9 +475,6 @@ class UserClientFactory(ClientFactory):
     def server_scrollback(self, lines):
         self.ui.set_output(lines)
 
-    def server_players(self, players):
-        self.ui.set_players(players)
-
     def server_users(self, users_a):
         #users_l = list(self.system_users)
 
@@ -692,7 +580,6 @@ class UserClientProtocol(LineReceiver):
 
         elif ty == "players":
             self.players = msg['players']
-            self.factory.server_players(self.players)
 
         elif ty == "stats":
             self.factory.server_stats(msg['stats'])
