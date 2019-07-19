@@ -30,6 +30,7 @@ class Manager(object):
         self.server_path = server_path
         self.jar_file = jar_file
         self.players = set()
+        self.users = set()
 
     def startup(self):
         reactor.addSystemEventTrigger('before', 'shutdown', self.before_reactor_stop)
@@ -206,9 +207,13 @@ class Manager(object):
 
     def handle_user_attach(self, event):
         self.console("%s attached" % event.user, kind="joinpart")
+        self.users.add(str(event.user))
+        self.events.dispatch(events.StatUsers(users=list(self.users)))
     
     def handle_user_detach(self, event):
         self.console("%s detached" % event.user, kind="joinpart")
+        self.users.discard(str(event.user))
+        self.events.dispatch(events.StatUsers(users=list(self.users)))
     
     @inlineCallbacks
     def handle_user_input(self, event):

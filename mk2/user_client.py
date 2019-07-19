@@ -252,7 +252,7 @@ class UI:
         g_foot = self.g_prompt
         g_foot_min = urwid.Pile((
             urwid.AttrMap(self.g_prompt, 'prompt', 'prompt_focus'),
-            self.g_stats_min
+            urwid.Columns((urwid.AttrMap(self.g_users, 'stats'), self.g_stats_min))
             ))
 
         g_frame = urwid.Frame(g_main, g_head, g_foot_min, focus_part='footer')
@@ -345,7 +345,6 @@ class UI:
         del contents[0:len(contents)]
         contents.append((urwid.AttrMap(urwid.Text(u' mark2 '), 'mark2'), self.g_servers.options('pack')))
         contents.extend(new)
-        contents.append((urwid.Divider(), self.g_users.options()))
 
     def set_users(self, users):
         new = []
@@ -356,7 +355,6 @@ class UI:
 
         contents = self.g_users.contents
         del contents[0:len(contents)]
-        contents.append((urwid.Divider(), self.g_users.options()))
         contents.extend(new)
 
     def safe_unicode(self, text):
@@ -422,17 +420,6 @@ class UI:
         self.redraw()
 
 
-class SystemUsers(set):
-    def __init__(self):
-        self.me = getpass.getuser()
-        set.__init__(self)
-
-    def update_users(self):
-        self.clear()
-        for u in psutil.get_users():
-            self.add(u.name)
-
-
 class App(object):
     def __init__(self, name, interval, update, shell, command):
         self.name = name
@@ -494,7 +481,7 @@ class UserClientFactory(ClientFactory):
 
         self.client = None
         self.stats = {}
-        self.system_users = SystemUsers()
+        self.me = os.getenv('REMOTEUSER') or 'unknown'
 
         #read the config
         self.config = properties.load(properties.ClientProperties, open_resource('resources/mark2rc.default.properties'), os.path.expanduser('~/.mark2rc.properties'))
@@ -512,16 +499,16 @@ class UserClientFactory(ClientFactory):
 
         #tasks
         t = LoopingCall(self.update_servers)
-        t.start(self.config.get_interval('servers'))
+        t.start(self.config.get_interval('servers'), now=True)
 
         t = LoopingCall(self.update_users)
-        t.start(self.config.get_interval('users'))
+        t.start(self.config.get_interval('users'), now=True)
 
         t = LoopingCall(self.update_players)
-        t.start(self.config.get_interval('players'))
+        t.start(self.config.get_interval('players'), now=True)
 
         t = LoopingCall(self.update_stats)
-        t.start(self.config.get_interval('stats'))
+        t.start(self.config.get_interval('stats'), now=True)
 
         self.connect_to_server(initial_name)
 
@@ -532,7 +519,7 @@ class UserClientFactory(ClientFactory):
         self.ui.main()
 
     def buildProtocol(self, addr):
-        self.client = UserClientProtocol(self.socket_from(addr.name), self.system_users.me, self)
+        self.client = UserClientProtocol(self.socket_from(addr.name), self.me, self)
         self.update_servers()
         return self.client
 
@@ -561,7 +548,6 @@ class UserClientFactory(ClientFactory):
         self.ui.set_servers(self.servers, current=self.client.name if self.client else None)
 
     def update_users(self):
-        self.system_users.update_users()
         if self.client:
             self.client.get_users()
 
@@ -602,11 +588,13 @@ class UserClientFactory(ClientFactory):
         self.ui.set_players(players)
 
     def server_users(self, users_a):
-        users_l = list(self.system_users)
+        #users_l = list(self.system_users)
 
         users = []
-        for u in sorted(set(users_l + users_a), key=str.lower):
-            users.append((u, u in users_a))
+        #for u in sorted(set(users_l + users_a), key=str.lower):
+        #    users.append((u, u in users_a))
+        for u in sorted(users_a, key=str.lower):
+            users.append((u, u == self.me))
 
         self.ui.set_users(users)
 

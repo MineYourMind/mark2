@@ -102,8 +102,7 @@ class UserServerFactory(Factory):
         self.users      = set()
         
         self.parent.events.register(self.handle_console, events.Console)
-        self.parent.events.register(self.handle_attach,  events.UserAttach)
-        self.parent.events.register(self.handle_detach,  events.UserDetach)
+        self.parent.events.register(self.handle_users,  events.StatUsers)
         
         self.parent.events.register(self.handle_player_count, events.StatPlayerCount)
         self.parent.events.register(self.handle_players,      events.StatPlayers)
@@ -122,11 +121,8 @@ class UserServerFactory(Factory):
     def handle_console(self, event):
         self.scrollback.put(event)
     
-    def handle_attach(self, event):
-        self.users.add(event.user)
-    
-    def handle_detach(self, event):
-        self.users.discard(event.user)
+    def handle_users(self, event):
+        self.users = event.users
     
     #stat handlers
     def handle_player_count(self, event):

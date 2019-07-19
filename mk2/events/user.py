@@ -11,3 +11,7 @@ class UserAttach(Event):
 
 class UserDetach(Event):
     user = Event.Arg(required=True)
+
+#provider: console tracking
+class StatUsers(Event):
+    users = Event.Arg(default='')
