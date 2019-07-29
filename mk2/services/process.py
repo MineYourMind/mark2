@@ -24,7 +24,7 @@ class ProcessProtocol(protocol.ProcessProtocol):
     def childDataReceived(self, fd, data):
         if data[0] == '\b':
             data = data.lstrip(' \b')
-        data = data.decode(self.locale)
+        data = data.decode(self.locale, 'ignore')
         data = data.split("\n")
         data[0] = self.obuff + data[0]
         self.obuff = data.pop()
