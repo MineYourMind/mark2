@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division
+
 import getpass
 import glob
 import json
@@ -10,12 +10,12 @@ from twisted.internet import reactor
 from twisted.internet.protocol import ClientFactory, ProcessProtocol
 from twisted.internet.task import LoopingCall
 from twisted.protocols.basic import LineReceiver
-import properties
+from . import properties
 import psutil
 import re
 import sys
 import urwid
-from shared import console_repr, open_resource
+from .shared import console_repr, open_resource
 
 
 class TabEvent:
@@ -28,12 +28,12 @@ class TabEvent:
         else:
             self.left, right = line[:pos], line[pos:]
 
-        self.players = filter(lambda p: re.match(right, p, re.I), players)
+        self.players = [p for p in players if re.match(right, p, re.I)]
         if len(self.players) == 0:
             self.fail = line
         self.index = 0
 
-    def next(self):
+    def __next__(self):
         if self.fail:
             return self.fail
         i = self.index % len(self.players)
@@ -100,7 +100,7 @@ class Prompt(urwid.Edit):
             else:
                 if self.tab is None:
                     self.tab = TabEvent(text, self.get_players())
-                self.set_prompt(self.tab.next())
+                self.set_prompt(next(self.tab))
         else:
             return urwid.Edit.keypress(self, size, key)
 
@@ -144,7 +144,7 @@ class UI:
         self.g_output_wrap = urwid.LineBox(urwid.AttrMap(self.g_output, 'output'))
         g_main             = urwid.WidgetDisable(urwid.AttrMap(self.g_output, 'console'))
 
-        self.g_stats        = urwid.Text([('cpu', u" CPU: 20.4% "), ('mem', u" MEM: 66.2% "), ('load', u" LOAD: 0.5 1.5 1.2 "), ('players', u" PLAYERS: 18 of 52 ")], align='right')
+        self.g_stats        = urwid.Text([('cpu', " CPU: 20.4% "), ('mem', " MEM: 66.2% "), ('load', " LOAD: 0.5 1.5 1.2 "), ('players', " PLAYERS: 18 of 52 ")], align='right')
         self.g_stats_min    = urwid.WidgetDisable(urwid.AttrMap(self.g_stats, 'stats'))
 
         #foot
@@ -238,7 +238,7 @@ class UI:
 
         contents = self.g_servers.contents
         del contents[0:len(contents)]
-        contents.append((urwid.AttrMap(urwid.Text(u' mark2 '), 'mark2'), self.g_servers.options('pack')))
+        contents.append((urwid.AttrMap(urwid.Text(' mark2 '), 'mark2'), self.g_servers.options('pack')))
         contents.extend(new)
 
     def set_users(self, users):
@@ -296,17 +296,17 @@ class UI:
         self.redraw()
 
     def set_filter(self, filter_):
-        if isinstance(filter_, basestring):
+        if isinstance(filter_, str):
             return self.set_filter(self.filters[filter_])
         self.filter = filter_.apply
         self.set_output()
 
     def set_stats(self, stats):
         self.g_stats.set_text([
-            ('cpu', u" CPU: {}% ".format(stats['cpu'])),
-            ('mem', u" MEM: {}% ".format(stats['memory'])),
-            ('load', u" LOAD: {} ".format(stats['load'])),
-            ('players', u" PLAYERS: {} of {} ".format(stats['players_current'], stats['players_max']))
+            ('cpu', " CPU: {}% ".format(stats['cpu'])),
+            ('mem', " MEM: {}% ".format(stats['memory'])),
+            ('load', " LOAD: {} ".format(stats['load'])),
+            ('players', " PLAYERS: {} of {} ".format(stats['players_current'], stats['players_max']))
         ])
         self.redraw()
 
@@ -506,7 +506,7 @@ class UserClientFactory(ClientFactory):
                 m = p.match(msg['data'])
                 return m and m.end() == len(msg['data'])
             return _filter
-        patterns = dict((k, makefilter(p)) for k, p in cfg.iteritems())
+        patterns = dict((k, makefilter(p)) for k, p in cfg.items())
 
         patterns['all'] = lambda a: True
 
@@ -618,11 +618,11 @@ def colorize(text):
 #                        '8':38, '9':42, 'a':40, 'b':44, 'c':39, 'd':43, 'e':41, 'f':45}
     formatting_codes = {'k', 'l', 'm', 'n', 'o'}
 
-    if text.find(u'\u00A7') != -1:
+    if text.find('\u00A7') != -1:
         for code in mappings_mc_ansi:
-            text = text.replace(u'\u00A7' + code, '\033[' + str(mappings_mc_ansi[code]) + u'm')
+            text = text.replace('\u00A7' + code, '\033[' + str(mappings_mc_ansi[code]) + 'm')
         for code in formatting_codes:
-            text = text.replace(u'\u00A7' + code, '')
+            text = text.replace('\u00A7' + code, '')
 
     """
     Convert ansi escape codes to urwid display attributes
@@ -634,7 +634,7 @@ def colorize(text):
 
     text_attributed = []
 
-    parts = unicode(text).split(u'\x1b')
+    parts = str(text).split('\x1b')
 
     regex = re.compile(r"^\[([;\d]*)m(.*)$", re.UNICODE | re.DOTALL)
 
@@ -645,7 +645,7 @@ def colorize(text):
             if r.group(2) != '':
                 foreground = 'default'
                 background = 'default'
-                for code in filter(None, r.group(1).split(';')):
+                for code in [_f for _f in r.group(1).split(';') if _f]:
                     if (int(code) in mappings_fg):
                         foreground = mappings_fg[int(code)]
 

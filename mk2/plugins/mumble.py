@@ -19,7 +19,8 @@ class MumbleProtocol(DatagramProtocol):
     def ping(self, *a):
         self.transport.write('\x00'*12, addr=(self.host, self.port))
 
-    def datagramReceived(self, data, (host, port)):
+    def datagramReceived(self, data, xxx_todo_changeme):
+        (host, port) = xxx_todo_changeme
         self.buff += data
         if len(self.buff) < 24:
             return
@@ -29,7 +30,7 @@ class MumbleProtocol(DatagramProtocol):
             self.buff = ""
             return
 
-        d = dict(zip(('users_current', 'users_max', 'bandwidth'), struct.unpack('>III', self.buff[12:24])))
+        d = dict(list(zip(('users_current', 'users_max', 'bandwidth'), struct.unpack('>III', self.buff[12:24]))))
 
         self.buff = self.buff[24:]
 
