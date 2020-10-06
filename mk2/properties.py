@@ -56,6 +56,14 @@ class Properties(OrderedDict):
         r_whitespace = '[' + re.escape(''.join(c_whitespace)) + ']*'
         r_seperator  = r_unescaped + r_whitespace + r_unescaped + '[' + re.escape(''.join(c_seperator + c_whitespace)) + ']'
 
+        # Helper function to perform str to str decoding of escape sequences
+        # See https://stackoverflow.com/a/58829514
+        def string_escape(s, encoding='utf-8'):
+            return (s.encode('latin1')         # To bytes, required by 'unicode-escape'
+                    .decode('unicode-escape')  # Perform the actual octal-escaping decode
+                    .encode('latin1')          # 1:1 mapping back to bytes
+                    .decode(encoding))         # Decode original encoding
+
         #This handles backslash escapes in keys/values
         def parse(input):
             token = list(input)
@@ -67,7 +75,7 @@ class Properties(OrderedDict):
                     try:
                         c = token.pop(0)
                         if c in c_escapes:
-                            out += ('\\'+c).decode('string-escape')
+                            out += string_escape('\\' + c)
                         elif c == 'u':
                             b = ""
                             for i in range(4):
@@ -81,14 +89,17 @@ class Properties(OrderedDict):
                 else:
                     out += c
 
-            if not uni:
-                out = out.encode('ascii')
             return out
 
-        d = f.read()
+        if f.mode == 'rb':
+            d = f.read().decode('utf8')
+        elif f.mode == 'r':
+            d = f.read()
+        else:
+            raise TypeError('Unable to parse provided file as string (received file in mode %s)' % f.mode)
 
         #Deal with Windows / Mac OS linebreaks
-        d = d.replace('\r\n','\n')
+        d = d.replace('\r\n', '\n')
         d = d.replace('\r', '\n')
         #Strip leading whitespace
         d = re.sub('(?m)\n\s*', '\n', d)

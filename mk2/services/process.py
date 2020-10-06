@@ -24,7 +24,8 @@ class ProcessProtocol(protocol.ProcessProtocol):
     def childDataReceived(self, fd, data):
         if data[0] == '\b':
             data = data.lstrip(' \b')
-        data = data.decode(self.locale, 'ignore')
+        if type(data) != 'str':
+            data = data.decode('utf8')
         data = data.split("\n")
         data[0] = self.obuff + data[0]
         self.obuff = data.pop()
@@ -163,7 +164,7 @@ class Process(Plugin):
     def update_stat(self, process):
         try:
             self.parent.events.dispatch(events.StatProcess(cpu=process.get_cpu_percent(interval=0), memory=process.get_memory_percent()))
-        except psutil.error.NoSuchProcess:
+        except psutil.NoSuchProcess:
             pass
 
     def before_reactor_stop(self):

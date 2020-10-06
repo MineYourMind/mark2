@@ -241,7 +241,8 @@ class CommandTyTerminal(CommandTySelective):
     def do_wait(self):
         if self.wait is None:
             return
-        while not os.path.exists(self.shared('log')):
+        log_path = self.shared('log')
+        while not os.path.exists(log_path):
             time.sleep(0.1)
         with open(self.shared('log'), 'r') as f:
             if not self.wait_from_start:
@@ -345,18 +346,17 @@ class CommandStart(CommandTyTerminal):
 
         os.chdir(".")
         os.setsid()
-        os.umask(0)
 
         if os.fork() > 0:
             sys.exit(0)
 
-        null = os.open('/dev/null', os.O_RDWR)
+        null = os.open(os.devnull, os.O_RDWR)
         for fileno in (1, 2, 3):
             try:
                 os.dup2(null, fileno)
             except:
                 pass
-
+        os.close(null)
         return 0
 
     def run(self):
